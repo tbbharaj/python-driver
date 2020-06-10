@@ -420,7 +420,7 @@ pipeline {
                 'dse-5.1',   // Legacy DataStax Enterprise
                 'dse-6.0',   // Previous DataStax Enterprise
                 'dse-6.7',   // Previous DataStax Enterprise
-                'dse-6.8'   // Current DataStax Enterprise
+                'dse-6.8',   // Current DataStax Enterprise
                 'ALL'],
       description: '''Apache CassandraⓇ and DataStax Enterprise server version to use for adhoc <b>BUILD-AND-EXECUTE-TESTS</b> <strong>ONLY!</strong>
                       <table style="width:100%">
