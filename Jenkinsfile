@@ -612,7 +612,7 @@ pipeline {
   stages {
     stage ('Per-Commit') {
       options {
-        timeout(time: 2, unit: 'HOURS')
+        timeout(time: 3, unit: 'HOURS')
       }
       when {
         beforeAgent true
@@ -628,16 +628,24 @@ pipeline {
         axes {
           axis {
             name 'CASSANDRA_VERSION'
-            values '3.11',    // Current Apache Cassandra
-                   'dse-6.8'   // Current DataStax Enterprise
+            values '2.1',       // Legacy Apache CassandraⓇ
+                   '2.2',       // Legacy Apache CassandraⓇ
+                   '3.0',       // Previous Apache CassandraⓇ
+                   '3.11',      // Current Apache CassandraⓇ
+                   '4.0',       // Development Apache CassandraⓇ
+                   'dse-5.0',   // Long Term Support DataStax Enterprise
+                   'dse-5.1',   // Legacy DataStax Enterprise
+                   'dse-6.0',   // Previous DataStax Enterprise
+                   'dse-6.7',   // Previous DataStax Enterprise
+                   'dse-6.8',   // Current DataStax Enterprise
           }
           axis {
             name 'PYTHON_VERSION'
-            values '2.7.18', '3.5.9'
+            values '2.7.18', '3.4.10', '3.5.9', '3.6.10', '3.7.7', '3.8.3'
           }
           axis {
             name 'CYTHON_ENABLED'
-            values 'False'
+            values 'False', 'True'
           }
         }
 
