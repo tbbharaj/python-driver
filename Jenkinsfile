@@ -628,19 +628,16 @@ pipeline {
         axes {
           axis {
             name 'CASSANDRA_VERSION'
-            values '2.1',       // Legacy Apache CassandraⓇ
-                   '2.2',       // Legacy Apache CassandraⓇ
-                   '3.0',       // Previous Apache CassandraⓇ
-                   '3.11',      // Current Apache CassandraⓇ
+            values '3.0',       // Previous Apache CassandraⓇ
                    '4.0'
           }
           axis {
             name 'PYTHON_VERSION'
-            values '2.7.18', '3.5.9', '3.6.10', '3.7.7', '3.8.3'
+            values '3.6.10'
           }
           axis {
             name 'CYTHON_ENABLED'
-            values 'False', 'True'
+            values 'False'
           }
         }
 
