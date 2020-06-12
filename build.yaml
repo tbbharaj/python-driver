@@ -56,6 +56,10 @@ schedules:
       include: [/release-.+/]
     env_vars: |
       EVENT_LOOP_MANAGER='libev'
+    matrix:
+      exclude:
+        - python: [2.7, 3.5, 3.6, 3.8]
+        - cassandra: ['2.1', '2.2', '3.0', '3.11', 'dse-5.0', 'dse-5.1', 'dse-6.0', 'dse-6.7', 'dse-6.8']
 
   weekly_master:
     schedule: 0 10 * * 6
@@ -152,8 +156,16 @@ os:
   - ubuntu/bionic64/python-driver
 
 cassandra:
+  - '2.1'
+  - '2.2'
   - '3.0'
+  - '3.11'
   - '4.0'
+  - 'dse-5.0'
+  - 'dse-5.1'
+  - 'dse-6.0'
+  - 'dse-6.7'
+  - 'dse-6.8'
 
 env:
   CYTHON:
