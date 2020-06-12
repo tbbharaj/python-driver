@@ -143,7 +143,6 @@ schedules:
 
 python:
   - 2.7
-  - 3.4
   - 3.5
   - 3.6
   - 3.7
@@ -153,17 +152,8 @@ os:
   - ubuntu/bionic64/python-driver
 
 cassandra:
-  - '2.1'
-  - '2.2'
   - '3.0'
-  - '3.11'
   - '4.0'
-  - 'dse-4.8'
-  - 'dse-5.0'
-  - 'dse-5.1'
-  - 'dse-6.0'
-  - 'dse-6.7'
-  - 'dse-6.8.0'
 
 env:
   CYTHON:
@@ -175,7 +165,7 @@ build:
       export JAVA_HOME=$CCM_JAVA_HOME
       export PATH=$JAVA_HOME/bin:$PATH
       export PYTHONPATH=""
-      export CCM_MAX_HEAP_SIZE=1024M
+      export CCM_MAX_HEAP_SIZE=1280M
 
       # Required for unix socket tests
       sudo apt-get install socat
@@ -184,11 +174,7 @@ build:
       pip install --upgrade pip
       pip install -U setuptools
 
-      pip install git+ssh://git@github.com/riptano/ccm-private.git@cassandra-7544-native-ports-with-dse-fix
-
-      # Remove this pyyaml installation when removing Python 3.4 support
-      pip install PyYAML==5.2
-      #pip install $HOME/ccm
+      pip install $HOME/ccm
 
       if [ -n "$CCM_IS_DSE" ]; then
         pip install -r test-datastax-requirements.txt
