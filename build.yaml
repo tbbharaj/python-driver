@@ -178,7 +178,6 @@ build:
       export JAVA_HOME=$CCM_JAVA_HOME
       export PATH=$JAVA_HOME/bin:$PATH
       export PYTHONPATH=""
-      export CCM_MAX_HEAP_SIZE=1536M
 
       # Required for unix socket tests
       sudo apt-get install socat
