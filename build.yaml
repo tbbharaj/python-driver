@@ -56,6 +56,7 @@ schedules:
       include: [/release-.+/]
     env_vars: |
       EVENT_LOOP_MANAGER=libev
+      EXCLUDE_LONG=1
     matrix:
       exclude:
         - python: [2.7, 3.5, 3.6, 3.8]
