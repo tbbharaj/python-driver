@@ -58,9 +58,9 @@ schedules:
       EVENT_LOOP_MANAGER=libev
     matrix:
       exclude:
-#        - python: [2.7, 3.5, 3.6, 3.8]
+        - python: [2.7, 3.5, 3.6, 3.8]
 #        - cassandra: ['2.1', '2.2', '3.0', '3.11', '4.0', 'dse-5.0', 'dse-5.1', 'dse-6.0', 'dse-6.7', 'dse-6.8']
-        - cassandra: ['dse-5.0', 'dse-5.1', 'dse-6.0', 'dse-6.7', 'dse-6.8.0']
+        - cassandra: ['2.1', '2.2', '3.0', '3.11', 'dse-5.0', 'dse-5.1', 'dse-6.0', 'dse-6.7', 'dse-6.8.0']
 
   weekly_master:
     schedule: 0 10 * * 6
@@ -178,7 +178,7 @@ build:
       export JAVA_HOME=$CCM_JAVA_HOME
       export PATH=$JAVA_HOME/bin:$PATH
       export PYTHONPATH=""
-      export CCM_MAX_HEAP_SIZE=""
+      export CCM_MAX_HEAP_SIZE="1000M"
 
       # Required for unix socket tests
       sudo apt-get install socat
