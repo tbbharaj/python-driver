@@ -399,10 +399,14 @@ def check_log_error():
     global CCM_CLUSTER
     log.debug("Checking log error of cluster {0}".format(CCM_CLUSTER.name))
     for node in CCM_CLUSTER.nodelist():
+        try:
             errors = node.grep_log_for_errors()
-            for error in errors:
-                for line in error:
-                    print(line)
+        except:
+            continue
+
+        for error in errors:
+            for line in error:
+                print(line)
 
 
 def remove_cluster():
