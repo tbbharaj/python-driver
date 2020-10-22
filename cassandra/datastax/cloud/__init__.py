@@ -58,13 +58,21 @@ class CloudConfig(object):
     sni_port = None
     host_ids = None
 
+    is_sni_cloud_config = False
+
     @classmethod
     def from_dict(cls, d):
         c = cls()
 
-        c.port = d.get('port', None)
+        # If cql_port is not set, we need to
+        # fallback and use the metadata service+SNIEndpoint
+        c.port = d.get('cql_port', None)
+        if c.port is None:
+            c.is_sni_cloud_config = True
+            c.port = d.get('port', None)
+
         try:
-            c.port = int(d['port'])
+            c.port = int(c.port)
         except:
             pass
 
@@ -89,9 +97,12 @@ def get_cloud_config(cloud_config, create_pyopenssl_context=False):
     except BadZipFile:
         raise ValueError("Unable to open the zip file for the cloud config. Check your secure connect bundle.")
 
-    config = read_metadata_info(config, cloud_config)
+    if config.is_sni_cloud_config:
+        config = read_metadata_info(config, cloud_config)
+
     if create_pyopenssl_context:
         config.ssl_context = config.pyopenssl_context
+
     return config
 
 
@@ -132,6 +143,7 @@ def parse_cloud_config(path, cloud_config, create_pyopenssl_context):
 
 
 def read_metadata_info(config, cloud_config):
+    log.debug("Fetching SNI info from the metadata service.")
     url = "https://{}:{}/metadata".format(config.host, config.port)
     timeout = cloud_config['connect_timeout'] if 'connect_timeout' in cloud_config else 5
     try:

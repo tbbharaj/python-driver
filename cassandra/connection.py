@@ -24,7 +24,7 @@ from six.moves import range
 import socket
 import struct
 import sys
-from threading import Thread, Event, RLock, Condition
+from threading import Thread, Event, RLock, Condition, Lock
 import time
 import ssl
 import weakref
@@ -244,20 +244,32 @@ class DefaultEndPointFactory(EndPointFactory):
 
 
 @total_ordering
-class SniEndPoint(EndPoint):
-    """SNI Proxy EndPoint implementation."""
+class HostnameEndPoint(EndPoint):
+    """
+    Hostname EndPoint implementation.
 
-    def __init__(self, proxy_address, server_name, port=9042):
-        self._proxy_address = proxy_address
-        self._index = 0
+    On each connection, resolve the hostname and use
+    round-robin to pick the next ip from the resolved addresses.
+    """
+
+    _offset = -1
+    _offset_lock = Lock()
+
+    def __init__(self, hostname, port=9042):
+        self._hostname = hostname
         self._resolved_address = None  # resolved address
         self._port = port
-        self._server_name = server_name
-        self._ssl_options = {'server_hostname': server_name}
+        self._ssl_options = {'server_hostname': self._hostname}
+
+    @classmethod
+    def _get_next_offset(cls):
+        with cls._offset_lock:
+            cls._offset += 1
+            return cls._offset
 
     @property
     def address(self):
-        return self._proxy_address
+        return self._hostname
 
     @property
     def port(self):
@@ -269,18 +281,57 @@ class SniEndPoint(EndPoint):
 
     def resolve(self):
         try:
-            resolved_addresses = socket.getaddrinfo(self._proxy_address, self._port,
+            resolved_addresses = socket.getaddrinfo(self._hostname, self._port,
                                                     socket.AF_UNSPEC, socket.SOCK_STREAM)
         except socket.gaierror:
-            log.debug('Could not resolve sni proxy hostname "%s" '
-                      'with port %d' % (self._proxy_address, self._port))
+            log.debug('Could not resolve hostname "%s" '
+                      'with port %d' % (self._hostname, self._port))
             raise
 
         # round-robin pick
-        self._resolved_address = sorted(addr[4][0] for addr in resolved_addresses)[self._index % len(resolved_addresses)]
-        self._index += 1
+        self._resolved_address = sorted(addr[4][0] for addr in resolved_addresses)[self._get_next_offset() % len(resolved_addresses)]
 
         return self._resolved_address, self._port
+
+    def __eq__(self, other):
+        return (isinstance(other, HostnameEndPoint) and
+                self.address == other.address and self.port == other.port)
+
+    def __hash__(self):
+        return hash((self.address, self.port))
+
+    def __lt__(self, other):
+        return ((self.address, self.port) <
+                (other.address, other.port))
+
+    def __str__(self):
+        return str("%s:%d" % (self.address, self.port))
+
+    def __repr__(self):
+        return "<%s: %s:%d>" % (self.__class__.__name__, self.address, self.port)
+
+
+class ServerHostnameEndPointFactory(DefaultEndPointFactory):
+    """EndPointFactory that sets a ssl server hostname to all endpoints"""
+
+    def __init__(self, server_hostname, port=None):
+        super(ServerHostnameEndPointFactory, self).__init__(port)
+        self._server_hostname = server_hostname
+
+    def create(self, row):
+        endpoint = super(ServerHostnameEndPointFactory, self).create(row)
+        endpoint._ssl_options = {'server_hostname': self._server_hostname}
+        return endpoint
+
+
+@total_ordering
+class SniEndPoint(HostnameEndPoint):
+    """SNI Proxy EndPoint implementation."""
+
+    def __init__(self, proxy_address, server_name, port=9042):
+        super(SniEndPoint, self).__init__(proxy_address, port)
+        self._server_name = server_name
+        self._ssl_options = {'server_hostname': server_name}
 
     def __eq__(self, other):
         return (isinstance(other, SniEndPoint) and

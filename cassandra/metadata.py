@@ -357,6 +357,15 @@ class Metadata(object):
 
         return None
 
+    def get_host_by_id(self, host_id):
+        print(host_id)
+        for host in six.itervalues(self._hosts):
+            print(host.host_id)
+            if host.host_id == host_id:
+                return host
+
+        return None
+
     def all_hosts(self):
         """
         Returns a list of all known :class:`.Host` instances in the cluster.

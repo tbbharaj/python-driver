@@ -48,7 +48,8 @@ from cassandra.auth import _proxy_execute_key, PlainTextAuthProvider
 from cassandra.connection import (ConnectionException, ConnectionShutdown,
                                   ConnectionHeartbeat, ProtocolVersionUnsupported,
                                   EndPoint, DefaultEndPoint, DefaultEndPointFactory,
-                                  ContinuousPagingState, SniEndPointFactory, ConnectionBusy)
+                                  ContinuousPagingState, SniEndPointFactory, ConnectionBusy,
+                                  HostnameEndPoint, ServerHostnameEndPointFactory)
 from cassandra.cqltypes import UserType
 from cassandra.encoder import Encoder
 from cassandra.protocol import (QueryMessage, ResultMessage,
@@ -1130,11 +1131,15 @@ class Cluster(object):
                     and cloud_config.password):
                 auth_provider = PlainTextAuthProvider(cloud_config.username, cloud_config.password)
 
-            endpoint_factory = SniEndPointFactory(cloud_config.sni_host, cloud_config.sni_port)
-            contact_points = [
-                endpoint_factory.create_from_sni(host_id)
-                for host_id in cloud_config.host_ids
-            ]
+            if cloud_config.is_sni_cloud_config:
+                endpoint_factory = SniEndPointFactory(cloud_config.sni_host, cloud_config.sni_port)
+                contact_points = [
+                    endpoint_factory.create_from_sni(host_id)
+                    for host_id in cloud_config.host_ids
+                ]
+            else:
+                contact_points = [HostnameEndPoint(cloud_config.host, cloud_config.port)]
+                endpoint_factory = ServerHostnameEndPointFactory(cloud_config.host)
 
         if contact_points is not None:
             if contact_points is _NOT_SET:
@@ -3802,7 +3807,7 @@ class ControlConnection(object):
 
             found_hosts.add(endpoint)
 
-            host = self._cluster.metadata.get_host(endpoint)
+            host = self._cluster.metadata.get_host_by_id(row.get("host_id"))
             datacenter = row.get("data_center")
             rack = row.get("rack")
             if host is None:
