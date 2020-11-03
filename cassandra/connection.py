@@ -153,10 +153,16 @@ class EndPoint(object):
         """
         return socket.AF_UNSPEC
 
-    def resolve(self):
+    # TODO next major, the force parameter could be removed with PYTHON-1080
+    # but now, contact points are mixed with cluster hosts, so we need a way
+    # to specify that we want resolve again the endpoint. We want this only
+    # for the control connection.
+    def resolve(self, force=False):
         """
         Resolve the endpoint to an address/port. This is called
         only on socket connection.
+
+        Internally, `force` is set to True when resolving for the ControlConnection.
         """
         raise NotImplementedError()
 
@@ -197,7 +203,7 @@ class DefaultEndPoint(EndPoint):
     def port(self):
         return self._port
 
-    def resolve(self):
+    def resolve(self, force=False):
         return self._address, self._port
 
     def __eq__(self, other):
@@ -216,6 +222,12 @@ class DefaultEndPoint(EndPoint):
     def __repr__(self):
         return "<%s: %s:%d>" % (self.__class__.__name__, self.address, self.port)
 
+def _get_broadcast_addr_and_port(row):
+    # TODO next major... move this class so we don't need this kind of hack
+    from cassandra.metadata import _NodeInfo
+    addr = _NodeInfo.get_broadcast_rpc_address(row)
+    port = _NodeInfo.get_broadcast_rpc_port(row)
+    return addr, port
 
 class DefaultEndPointFactory(EndPointFactory):
 
@@ -229,10 +241,7 @@ class DefaultEndPointFactory(EndPointFactory):
         self.port = port
 
     def create(self, row):
-        # TODO next major... move this class so we don't need this kind of hack
-        from cassandra.metadata import _NodeInfo
-        addr = _NodeInfo.get_broadcast_rpc_address(row)
-        port = _NodeInfo.get_broadcast_rpc_port(row)
+        addr, port = _get_broadcast_addr_and_port(row)
         if port is None:
             port = self.port if self.port else 9042
 
@@ -248,18 +257,22 @@ class HostnameEndPoint(EndPoint):
     """
     Hostname EndPoint implementation.
 
-    On each connection, resolve the hostname and use
-    round-robin to pick the next ip from the resolved addresses.
+    This endpoint supports hostname with multiple A records and
+    re-resolving on demand. It uses round-robin to pick the
+    next ip from the resolved addresses.
     """
 
     _offset = -1
     _offset_lock = Lock()
 
-    def __init__(self, hostname, port=9042):
-        self._hostname = hostname
-        self._resolved_address = None  # resolved address
+    # if the A record address of the endpoint is already known,
+    # you can specify it with  `resolved_address`. This is the case when
+    # discovering nodes from system.peers.
+    def __init__(self, hostname, port=9042, resolved_address=None):
+        self.hostname = hostname
+        self.resolved_address = resolved_address
         self._port = port
-        self._ssl_options = {'server_hostname': self._hostname}
+        self._ssl_options = {'server_hostname': self.hostname}
 
     @classmethod
     def _get_next_offset(cls):
@@ -269,7 +282,7 @@ class HostnameEndPoint(EndPoint):
 
     @property
     def address(self):
-        return self._hostname
+        return self.hostname
 
     @property
     def port(self):
@@ -279,49 +292,56 @@ class HostnameEndPoint(EndPoint):
     def ssl_options(self):
         return self._ssl_options
 
-    def resolve(self):
+    def resolve(self, force=False):
+        """
+        If force is `True`, resolve again the hostname to
+        an address/port. Else, return the cached resolve address.
+        """
+        if not force and self.resolved_address:
+            return self.resolved_address, self._port
+
         try:
-            resolved_addresses = socket.getaddrinfo(self._hostname, self._port,
+            resolved_addresses = socket.getaddrinfo(self.hostname, self._port,
                                                     socket.AF_UNSPEC, socket.SOCK_STREAM)
         except socket.gaierror:
             log.debug('Could not resolve hostname "%s" '
-                      'with port %d' % (self._hostname, self._port))
+                      'with port %d' % (self.hostname, self._port))
             raise
 
         # round-robin pick
-        self._resolved_address = sorted(addr[4][0] for addr in resolved_addresses)[self._get_next_offset() % len(resolved_addresses)]
+        self.resolved_address = sorted(addr[4][0] for addr in resolved_addresses)[self._get_next_offset() % len(resolved_addresses)]
 
-        return self._resolved_address, self._port
+        return self.resolved_address, self._port
 
     def __eq__(self, other):
         return (isinstance(other, HostnameEndPoint) and
-                self.address == other.address and self.port == other.port)
+                self.hostname == other.hostname and
+                self.resolved_address == other.resolved_address
+                and self.port == other.port)
 
     def __hash__(self):
-        return hash((self.address, self.port))
+        return hash((self.hostname, self.resolved_address, self.port))
 
     def __lt__(self, other):
-        return ((self.address, self.port) <
-                (other.address, other.port))
+        return ((self.hostname, self.resolved_address, self.port) <
+                (other.hostname, other.resolved_address, other.port))
 
     def __str__(self):
-        return str("%s:%d" % (self.address, self.port))
+        return "%s:%s:%d" % (self.hostname, self.resolved_address, self.port) \
+            if self.resolved_address else "%s:%d" % (self.hostname, self.port)
 
     def __repr__(self):
-        return "<%s: %s:%d>" % (self.__class__.__name__, self.address, self.port)
+        return "<%s: %s>" % (self.__class__.__name__, str(self))
 
 
-class ServerHostnameEndPointFactory(DefaultEndPointFactory):
-    """EndPointFactory that sets a ssl server hostname to all endpoints"""
-
-    def __init__(self, server_hostname, port=None):
-        super(ServerHostnameEndPointFactory, self).__init__(port)
-        self._server_hostname = server_hostname
+class HostnameEndPointFactory(EndPointFactory):
+    def __init__(self, server_hostname, port=9042):
+        self.port = port
+        self.server_hostname = server_hostname
 
     def create(self, row):
-        endpoint = super(ServerHostnameEndPointFactory, self).create(row)
-        endpoint._ssl_options = {'server_hostname': self._server_hostname}
-        return endpoint
+        addr, _ = _get_broadcast_addr_and_port(row)
+        return HostnameEndPoint(self.server_hostname, self.port, resolved_address=addr)
 
 
 @total_ordering
@@ -329,7 +349,7 @@ class SniEndPoint(HostnameEndPoint):
     """SNI Proxy EndPoint implementation."""
 
     def __init__(self, proxy_address, server_name, port=9042):
-        super(SniEndPoint, self).__init__(proxy_address, port)
+        super(SniEndPoint, self).__init__(proxy_address, port=port)
         self._server_name = server_name
         self._ssl_options = {'server_hostname': server_name}
 
@@ -391,7 +411,7 @@ class UnixSocketEndPoint(EndPoint):
     def socket_family(self):
         return socket.AF_UNIX
 
-    def resolve(self):
+    def resolve(self, force=False):
         return self.address, None
 
     def __eq__(self, other):
@@ -904,7 +924,7 @@ class Connection(object):
         ssl.match_hostname(self._socket.getpeercert(), self.endpoint.address)
 
     def _get_socket_addresses(self):
-        address, port = self.endpoint.resolve()
+        address, port = self.endpoint.resolve(force=self.is_control_connection)
 
         if hasattr(socket, 'AF_UNIX') and self.endpoint.socket_family == socket.AF_UNIX:
             return [(socket.AF_UNIX, socket.SOCK_STREAM, 0, None, address)]

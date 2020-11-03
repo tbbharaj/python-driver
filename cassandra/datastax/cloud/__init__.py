@@ -58,7 +58,7 @@ class CloudConfig(object):
     sni_port = None
     host_ids = None
 
-    is_sni_cloud_config = False
+    is_stargate_cloud_config = True
 
     @classmethod
     def from_dict(cls, d):
@@ -68,7 +68,7 @@ class CloudConfig(object):
         # fallback and use the metadata service+SNIEndpoint
         c.port = d.get('cql_port', None)
         if c.port is None:
-            c.is_sni_cloud_config = True
+            c.is_stargate_cloud_config = False
             c.port = d.get('port', None)
 
         try:
@@ -97,7 +97,7 @@ def get_cloud_config(cloud_config, create_pyopenssl_context=False):
     except BadZipFile:
         raise ValueError("Unable to open the zip file for the cloud config. Check your secure connect bundle.")
 
-    if config.is_sni_cloud_config:
+    if not config.is_stargate_cloud_config:
         config = read_metadata_info(config, cloud_config)
 
     if create_pyopenssl_context:

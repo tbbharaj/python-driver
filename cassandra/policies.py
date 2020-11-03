@@ -367,7 +367,7 @@ class TokenAwarePolicy(LoadBalancingPolicy):
             keyspace = working_keyspace
 
         child = self._child_policy
-        if query is None:
+        if query is None or not self._cluster_metadata.has_token_routing_support:
             for host in child.make_query_plan(keyspace, query):
                 yield host
         else:

@@ -119,11 +119,18 @@ class Metadata(object):
     dbaas = False
     """ A boolean indicating if connected to a DBaaS cluster """
 
+    _stargate = False
+    """A boolean indicating if connected to a stargate cluster."""
+
     def __init__(self):
         self.keyspaces = {}
         self.dbaas = False
         self._hosts = {}
         self._hosts_lock = RLock()
+
+    @property
+    def has_token_routing_support(self):
+        return not self._stargate
 
     def export_schema_as_string(self):
         """
@@ -353,15 +360,6 @@ class Metadata(object):
         for host in six.itervalues(self._hosts):
             if (host.broadcast_rpc_address == address and
                     (port is None or host.broadcast_rpc_port is None or host.broadcast_rpc_port == port)):
-                return host
-
-        return None
-
-    def get_host_by_id(self, host_id):
-        print(host_id)
-        for host in six.itervalues(self._hosts):
-            print(host.host_id)
-            if host.host_id == host_id:
                 return host
 
         return None

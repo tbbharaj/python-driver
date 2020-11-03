@@ -49,7 +49,7 @@ from cassandra.connection import (ConnectionException, ConnectionShutdown,
                                   ConnectionHeartbeat, ProtocolVersionUnsupported,
                                   EndPoint, DefaultEndPoint, DefaultEndPointFactory,
                                   ContinuousPagingState, SniEndPointFactory, ConnectionBusy,
-                                  HostnameEndPoint, ServerHostnameEndPointFactory)
+                                  HostnameEndPoint, HostnameEndPointFactory)
 from cassandra.cqltypes import UserType
 from cassandra.encoder import Encoder
 from cassandra.protocol import (QueryMessage, ResultMessage,
@@ -66,7 +66,8 @@ from cassandra.protocol import (QueryMessage, ResultMessage,
                                 RESULT_KIND_SCHEMA_CHANGE, ProtocolHandler,
                                 RESULT_KIND_VOID)
 from cassandra.metadata import Metadata, protect_name, murmur3, _NodeInfo
-from cassandra.policies import (TokenAwarePolicy, DCAwareRoundRobinPolicy, SimpleConvictionPolicy,
+from cassandra.policies import (TokenAwarePolicy, DCAwareRoundRobinPolicy,
+                                RoundRobinPolicy, SimpleConvictionPolicy,
                                 ExponentialReconnectionPolicy, HostDistance,
                                 RetryPolicy, IdentityTranslator, NoSpeculativeExecutionPlan,
                                 NoSpeculativeExecutionPolicy, DefaultLoadBalancingPolicy,
@@ -1112,6 +1113,7 @@ class Cluster(object):
 
         Any of the mutable Cluster attributes may be set as keyword arguments to the constructor.
         """
+        self.metadata = Metadata()
         if connection_class is not None:
             self.connection_class = connection_class
 
@@ -1131,15 +1133,17 @@ class Cluster(object):
                     and cloud_config.password):
                 auth_provider = PlainTextAuthProvider(cloud_config.username, cloud_config.password)
 
-            if cloud_config.is_sni_cloud_config:
+            if cloud_config.is_stargate_cloud_config:
+                self.metadata._stargate = True
+                contact_points = [HostnameEndPoint(cloud_config.host, cloud_config.port)]
+                endpoint_factory = HostnameEndPointFactory(cloud_config.host, cloud_config.port)
+                log.debug("Astra stargate cloud configuration provided: Token routing at the driver level will be disabled.")
+            else:
                 endpoint_factory = SniEndPointFactory(cloud_config.sni_host, cloud_config.sni_port)
                 contact_points = [
                     endpoint_factory.create_from_sni(host_id)
                     for host_id in cloud_config.host_ids
                 ]
-            else:
-                contact_points = [HostnameEndPoint(cloud_config.host, cloud_config.port)]
-                endpoint_factory = ServerHostnameEndPointFactory(cloud_config.host)
 
         if contact_points is not None:
             if contact_points is _NOT_SET:
@@ -1316,7 +1320,6 @@ class Cluster(object):
         # let Session objects be GC'ed (and shutdown) when the user no longer
         # holds a reference.
         self.sessions = WeakSet()
-        self.metadata = Metadata()
         self.control_connection = None
         self._prepared_statements = WeakValueDictionary()
         self._prepared_statement_lock = Lock()
@@ -3807,7 +3810,7 @@ class ControlConnection(object):
 
             found_hosts.add(endpoint)
 
-            host = self._cluster.metadata.get_host_by_id(row.get("host_id"))
+            host = self._cluster.metadata.get_host(endpoint)
             datacenter = row.get("data_center")
             rack = row.get("rack")
             if host is None:
