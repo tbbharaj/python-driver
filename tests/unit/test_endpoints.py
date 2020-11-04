@@ -14,7 +14,7 @@ except ImportError:
 import itertools
 
 from cassandra.connection import (DefaultEndPoint, SniEndPoint, SniEndPointFactory,
-                                  HostnameEndPoint, HostnameEndPointFactory)
+                                  _HostnameEndPoint, _HostnameEndPointFactory)
 
 from mock import patch
 
@@ -30,12 +30,12 @@ def socket_getaddrinfo(*args):
 @patch('socket.getaddrinfo', socket_getaddrinfo)
 class HostnameEndPointTest(unittest.TestCase):
 
-    endpoint_factory = HostnameEndPointFactory("proxy.datastax.com", 30002)
+    endpoint_factory = _HostnameEndPointFactory("proxy.datastax.com", 30002)
     peer_row = {'peer': '10.0.0.1'}
 
     def test_hostname_endpoint_properties(self):
 
-        endpoint = HostnameEndPoint('proxy.datastax.com', 30002)
+        endpoint = _HostnameEndPoint('proxy.datastax.com', 30002)
         self.assertEqual(endpoint.address, 'proxy.datastax.com')
         self.assertEqual(endpoint.port, 30002)
         self.assertIsNone(endpoint.resolved_address)
@@ -70,12 +70,12 @@ class HostnameEndPointTest(unittest.TestCase):
 
         self.assertNotEqual(
             self.endpoint_factory.create(self.peer_row),
-            HostnameEndPoint("proxy.datastax.com", 30002)
+            _HostnameEndPoint("proxy.datastax.com", 30002)
         )
 
         self.assertNotEqual(
             self.endpoint_factory.create(self.peer_row),
-            HostnameEndPoint("proxy.datastax.com", 9999, resolved_address='10.0.0.1')
+            _HostnameEndPoint("proxy.datastax.com", 9999, resolved_address='10.0.0.1')
         )
 
     def test_endpoint_resolve(self):
@@ -84,26 +84,22 @@ class HostnameEndPointTest(unittest.TestCase):
             (address, _) = endpoint.resolve()
             self.assertEqual(address, '10.0.0.1')
 
-    def test_endpoint_force_resolve(self):
+    def test_multiple_endpoints_resolve(self):
         ips = ['127.0.0.1', '127.0.0.2', '127.0.0.3']
         it = itertools.cycle(ips)
 
-        endpoint = self.endpoint_factory.create(self.peer_row)
+        _HostnameEndPoint._offset = -1  # reset the class attr
+        endpoint = _HostnameEndPoint('proxy.datastax.com')
+        endpoint2 = _HostnameEndPoint('proxy.datastax.com')
+
+        # endpoint will return the cached ip when resolved
+        endpoint_ip = next(it)
+        endpoint2_ip = next(it)
         for _ in range(10):
-            (address, _) = endpoint.resolve(True)
-            self.assertEqual(address, next(it))
+            self.assertEqual(endpoint.resolve()[0], endpoint_ip)
+            self.assertEqual(endpoint2.resolve()[0], endpoint2_ip)
 
-    def test_multiple_endpoints_force_resolve(self):
-        ips = ['127.0.0.1', '127.0.0.2', '127.0.0.3']
-        it = itertools.cycle(ips)
-
-        HostnameEndPoint._offset = -1  # reset the class attr
-        endpoint = HostnameEndPoint('proxy.datastax.com')
-        endpoint2 = HostnameEndPoint('proxy.datastax.com')
-
-        for _ in range(10):
-            self.assertEqual(endpoint.resolve(True)[0], next(it))
-            self.assertEqual(endpoint2.resolve(True)[0], next(it))
+        self.assertEqual(_HostnameEndPoint('proxy.datastax.com').resolve()[0], next(it))
 
 
 @patch('socket.getaddrinfo', socket_getaddrinfo)
@@ -126,7 +122,7 @@ class SniEndPointTest(unittest.TestCase):
         )
 
         self.assertNotEqual(
-            HostnameEndPoint('10.0.0.1'),
+            _HostnameEndPoint('10.0.0.1'),
             self.endpoint_factory.create_from_sni('10.0.0.1')
         )
 

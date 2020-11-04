@@ -49,7 +49,7 @@ from cassandra.connection import (ConnectionException, ConnectionShutdown,
                                   ConnectionHeartbeat, ProtocolVersionUnsupported,
                                   EndPoint, DefaultEndPoint, DefaultEndPointFactory,
                                   ContinuousPagingState, SniEndPointFactory, ConnectionBusy,
-                                  HostnameEndPoint, HostnameEndPointFactory)
+                                  _HostnameEndPoint, _HostnameEndPointFactory)
 from cassandra.cqltypes import UserType
 from cassandra.encoder import Encoder
 from cassandra.protocol import (QueryMessage, ResultMessage,
@@ -1134,9 +1134,11 @@ class Cluster(object):
                 auth_provider = PlainTextAuthProvider(cloud_config.username, cloud_config.password)
 
             if cloud_config.is_stargate_cloud_config:
-                self.metadata._stargate = True
-                contact_points = [HostnameEndPoint(cloud_config.host, cloud_config.port)]
-                endpoint_factory = HostnameEndPointFactory(cloud_config.host, cloud_config.port)
+                hostname = _HostnameEndPoint(cloud_config.host, cloud_config.port)
+                # make sure to resolve the endpoint before it is added to the metadata. PYTHON-1080
+                hostname.resolve()
+                contact_points = [hostname]
+                endpoint_factory = _HostnameEndPointFactory(cloud_config.host, cloud_config.port)
                 log.debug("Astra stargate cloud configuration provided: Token routing at the driver level will be disabled.")
             else:
                 endpoint_factory = SniEndPointFactory(cloud_config.sni_host, cloud_config.sni_port)

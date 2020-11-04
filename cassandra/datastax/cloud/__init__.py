@@ -64,7 +64,7 @@ class CloudConfig(object):
     def from_dict(cls, d):
         c = cls()
 
-        # If cql_port is not set, we need to
+        # If cql_port is not set, we'll need to
         # fallback and use the metadata service+SNIEndpoint
         c.port = d.get('cql_port', None)
         if c.port is None:

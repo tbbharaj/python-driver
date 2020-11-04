@@ -12,7 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License
 from cassandra.cluster import Cluster
-from cassandra.auth import PlainTextAuthProvider
 
 try:
     import unittest2 as unittest
@@ -22,22 +21,22 @@ except ImportError:
 import os
 import subprocess
 
-from tests.integration import CLOUD_STARGATE_PATH, USE_CASS_EXTERNAL
+from tests.integration import CLOUD_PROXY_PATH, USE_CASS_EXTERNAL
 
 
 def setup_package():
-    if CLOUD_STARGATE_PATH and not USE_CASS_EXTERNAL:
-        start_cloud_stargate()
+    if CLOUD_PROXY_PATH and not USE_CASS_EXTERNAL:
+        start_cloud_proxy()
 
 
 def teardown_package():
     if not USE_CASS_EXTERNAL:
-        stop_cloud_stargate()
+        stop_cloud_proxy()
 
 
-class CloudStargateCluster(unittest.TestCase):
+class CloudProxyCluster(unittest.TestCase):
 
-    creds_dir = os.path.join(os.path.abspath(CLOUD_STARGATE_PATH or ''), 'certs/bundles/')
+    creds_dir = os.path.join(os.path.abspath(CLOUD_PROXY_PATH or ''), 'certs/bundles/')
     creds = os.path.join(creds_dir, 'creds-v1.zip')
     creds_no_auth = os.path.join(creds_dir, 'creds-v1-wo-creds.zip')
     creds_unreachable = os.path.join(creds_dir, 'creds-v1-unreachable.zip')
@@ -59,29 +58,30 @@ class CloudStargateCluster(unittest.TestCase):
             self.cluster.shutdown()
 
 
-class CloudStargateServer(object):
+class CloudProxyServer(object):
     """
-    Class for starting and stopping the proxy (stargate_driver_endpoint)
+    Class for starting and stopping the proxy (sni_single_endpoint)
     """
 
-    def __init__(self, cloud_stargate_path):
-        self.cloud_stargate_path = cloud_stargate_path
+    ccm_command = 'docker exec $(docker ps -a -q --filter ancestor=single_endpoint) ccm {}'
+
+    def __init__(self, CLOUD_PROXY_PATH):
+        self.CLOUD_PROXY_PATH = CLOUD_PROXY_PATH
         self.running = False
 
     def start(self):
         return_code = subprocess.call(
             ['REQUIRE_CLIENT_CERTIFICATE=true ./run.sh'],
-            cwd=self.cloud_stargate_path,
+            cwd=self.CLOUD_PROXY_PATH,
             shell=True)
         if return_code != 0:
-            raise Exception("Error while starting stargate server")
+            raise Exception("Error while starting proxy server")
         self.running = True
 
     def stop(self):
         if self.is_running():
             subprocess.call(
-                ["docker-compose stop"],
-                cwd=self.cloud_stargate_path,
+                ["docker kill $(docker ps -a -q --filter ancestor=single_endpoint)"],
                 shell=True)
             self.running = False
 
@@ -89,30 +89,28 @@ class CloudStargateServer(object):
         return self.running
 
     def start_node(self, id):
-        command = 'docker-compose start envoy{}'.format(id)
+        subcommand = 'node{} start --jvm_arg "-Ddse.product_type=DATASTAX_APOLLO" --root --wait-for-binary-proto'.format(id)
         subprocess.call(
-            [command],
-            cwd=self.cloud_stargate_path,
+            [self.ccm_command.format(subcommand)],
             shell=True)
 
     def stop_node(self, id):
-        command = 'docker-compose stop envoy{}'.format(id)
+        subcommand = 'node{} stop'.format(id)
         subprocess.call(
-            [command],
-            cwd=self.cloud_stargate_path,
+            [self.ccm_command.format(subcommand)],
             shell=True)
 
 
-CLOUD_STARGATE_SERVER = CloudStargateServer(CLOUD_STARGATE_PATH)
+CLOUD_PROXY_SERVER = CloudProxyServer(CLOUD_PROXY_PATH)
 
 
-def start_cloud_stargate():
+def start_cloud_proxy():
     """
     Starts and waits for the proxy to run
     """
-    CLOUD_STARGATE_SERVER.stop()
-    CLOUD_STARGATE_SERVER.start()
+    CLOUD_PROXY_SERVER.stop()
+    CLOUD_PROXY_SERVER.start()
 
 
-def stop_cloud_stargate():
-    CLOUD_STARGATE_SERVER.stop()
+def stop_cloud_proxy():
+    CLOUD_PROXY_SERVER.stop()

@@ -160,6 +160,7 @@ USE_CASS_EXTERNAL = bool(os.getenv('USE_CASS_EXTERNAL', False))
 KEEP_TEST_CLUSTER = bool(os.getenv('KEEP_TEST_CLUSTER', False))
 SIMULACRON_JAR = os.getenv('SIMULACRON_JAR', None)
 CLOUD_PROXY_PATH = os.getenv('CLOUD_PROXY_PATH', None)
+CLOUD_STARGATE_PATH = os.getenv('CLOUD_STARGATE_PATH', None)
 
 # Supported Clusters: Cassandra, DDAC, DSE
 DSE_VERSION = None
@@ -345,7 +346,7 @@ requirecassandra = unittest.skipIf(DSE_VERSION, "Cassandra required")
 notdse = unittest.skipIf(DSE_VERSION, "DSE not supported")
 requiredse = unittest.skipUnless(DSE_VERSION, "DSE required")
 requirescloudproxy = unittest.skipIf(CLOUD_PROXY_PATH is None, "Cloud Proxy path hasn't been specified")
-
+requirescloudstargate = unittest.skipIf(CLOUD_STARGATE_PATH is None, "Cloud Stargate path hasn't been specified")
 libevtest = unittest.skipUnless(EVENT_LOOP_MANAGER=="libev", "Test timing designed for libev loop")
 
 def wait_for_node_socket(node, timeout):

@@ -25,12 +25,12 @@ from cassandra.cluster import Cluster
 from cassandra.query import SimpleStatement
 
 from tests.integration import execute_until_pass
-from tests.integration.cloud import CloudProxyCluster
+from tests.integration.cloud_sni import CloudProxyCluster
 
 log = logging.getLogger(__name__)
 
 
-class CloudSchemaTests(CloudProxyCluster):
+class CloudSniSchemaTests(CloudProxyCluster):
     def test_recreates(self):
         """
         Basic test for repeated schema creation and use, using many different keyspaces

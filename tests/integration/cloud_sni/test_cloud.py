@@ -11,7 +11,12 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License
+from cassandra.datastax.cloud import parse_metadata_info
 from cassandra.query import SimpleStatement
+from cassandra.cqlengine import connection
+from cassandra.cqlengine.management import sync_table, create_keyspace_simple
+from cassandra.cqlengine.models import Model
+from cassandra.cqlengine import columns
 
 try:
     import unittest2 as unittest
@@ -19,19 +24,19 @@ except ImportError:
     import unittest  # noqa
 
 import six
-from ssl import SSLContext, PROTOCOL_TLSv1
+from ssl import SSLContext, PROTOCOL_TLS
 
-from cassandra import ConsistencyLevel, InvalidRequest
+from cassandra import DriverException, ConsistencyLevel, InvalidRequest
 from cassandra.cluster import NoHostAvailable, ExecutionProfile, Cluster, _execution_profile_to_string
-from cassandra.connection import _HostnameEndPoint
+from cassandra.connection import SniEndPoint
 from cassandra.auth import PlainTextAuthProvider
 from cassandra.policies import TokenAwarePolicy, DCAwareRoundRobinPolicy, ConstantReconnectionPolicy
 
 from mock import patch
 
-from tests.integration import requirescloudstargate
+from tests.integration import requirescloudproxy
 from tests.util import wait_until_not_raised
-from tests.integration.cloud import CloudStargateCluster, CLOUD_STARGATE_SERVER
+from tests.integration.cloud_sni import CloudProxyCluster, CLOUD_PROXY_SERVER
 
 DISALLOWED_CONSISTENCIES = [
     ConsistencyLevel.ANY,
@@ -40,26 +45,26 @@ DISALLOWED_CONSISTENCIES = [
 ]
 
 
-@requirescloudstargate
-class CloudTests(CloudStargateCluster):
+@requirescloudproxy
+class CloudSniTests(CloudProxyCluster):
     def hosts_up(self):
         return [h for h in self.cluster.metadata.all_hosts() if h.is_up]
 
     def test_resolve_and_connect(self):
         self.connect(self.creds)
 
-        self.assertEqual(len(self.hosts_up()), 2)
+        self.assertEqual(len(self.hosts_up()), 3)
         for host in self.cluster.metadata.all_hosts():
             self.assertTrue(host.is_up)
-            self.assertIsInstance(host.endpoint, _HostnameEndPoint)
+            self.assertIsInstance(host.endpoint, SniEndPoint)
             self.assertEqual(str(host.endpoint), "{}:{}:{}".format(
-                host.endpoint.address, host.endpoint.resolved_address, host.endpoint.port))
-            self.assertIn(host.endpoint.resolved_address, ("172.16.238.2", "172.16.238.3"))
+                host.endpoint.address, host.endpoint.port, host.host_id))
+            self.assertIn(host.endpoint.resolved_address, ("127.0.0.1", '::1'))
 
     def test_match_system_local(self):
         self.connect(self.creds)
 
-        self.assertEqual(len(self.hosts_up()), 2)
+        self.assertEqual(len(self.hosts_up()), 3)
         for host in self.cluster.metadata.all_hosts():
             row = self.session.execute('SELECT * FROM system.local', host=host).one()
             self.assertEqual(row.host_id, host.host_id)
@@ -68,8 +73,8 @@ class CloudTests(CloudStargateCluster):
     def test_set_auth_provider(self):
         self.connect(self.creds)
         self.assertIsInstance(self.cluster.auth_provider, PlainTextAuthProvider)
-        self.assertEqual(self.cluster.auth_provider.username, 'cassandra')
-        self.assertEqual(self.cluster.auth_provider.password, 'cassandra')
+        self.assertEqual(self.cluster.auth_provider.username, 'user1')
+        self.assertEqual(self.cluster.auth_provider.password, 'user1')
 
     def test_support_leaving_the_auth_unset(self):
         with self.assertRaises(NoHostAvailable):
@@ -87,7 +92,7 @@ class CloudTests(CloudStargateCluster):
 
     def test_error_overriding_ssl_context(self):
         with self.assertRaises(ValueError) as cm:
-            self.connect(self.creds, ssl_context=SSLContext(PROTOCOL_TLSv1))
+            self.connect(self.creds, ssl_context=SSLContext(PROTOCOL_TLS))
 
         self.assertIn('cannot be specified with a cloud configuration', str(cm.exception))
 
@@ -96,6 +101,17 @@ class CloudTests(CloudStargateCluster):
             self.connect(self.creds, ssl_options={'check_hostname': True})
 
         self.assertIn('cannot be specified with a cloud configuration', str(cm.exception))
+
+    def _bad_hostname_metadata(self, config, http_data):
+        config = parse_metadata_info(config, http_data)
+        config.sni_host = "127.0.0.1"
+        return config
+
+    def test_verify_hostname(self):
+        with patch('cassandra.datastax.cloud.parse_metadata_info', wraps=self._bad_hostname_metadata):
+            with self.assertRaises(NoHostAvailable) as e:
+                self.connect(self.creds)
+            self.assertIn("hostname", str(e.exception).lower())
 
     def test_error_when_bundle_doesnt_exist(self):
         try:
@@ -119,19 +135,31 @@ class CloudTests(CloudStargateCluster):
                      idle_heartbeat_interval=1, idle_heartbeat_timeout=1,
                      reconnection_policy=ConstantReconnectionPolicy(120))
 
-        self.assertEqual(len(self.hosts_up()), 2)
-        CLOUD_STARGATE_SERVER.stop_node(1)
+        self.assertEqual(len(self.hosts_up()), 3)
+        CLOUD_PROXY_SERVER.stop_node(1)
         wait_until_not_raised(
-            lambda: self.assertEqual(len(self.hosts_up()), 1),
-            0.5, 120)
+            lambda: self.assertEqual(len(self.hosts_up()), 2),
+            0.02, 250)
 
         host = [h for h in self.cluster.metadata.all_hosts() if not h.is_up][0]
-        with patch.object(_HostnameEndPoint, "resolve", wraps=host.endpoint.resolve) as mocked_resolve:
-            CLOUD_STARGATE_SERVER.start_node(1)
+        with patch.object(SniEndPoint, "resolve", wraps=host.endpoint.resolve) as mocked_resolve:
+            CLOUD_PROXY_SERVER.start_node(1)
             wait_until_not_raised(
-                lambda: self.assertEqual(len(self.hosts_up()), 2),
-                0.5, 240)
+                lambda: self.assertEqual(len(self.hosts_up()), 3),
+                0.02, 250)
             mocked_resolve.assert_called()
+
+    def test_metadata_unreachable(self):
+        with self.assertRaises(DriverException) as cm:
+            self.connect(self.creds_unreachable, connect_timeout=1)
+
+        self.assertIn('Unable to connect to the metadata service', str(cm.exception))
+
+    def test_metadata_ssl_error(self):
+        with self.assertRaises(DriverException) as cm:
+            self.connect(self.creds_invalid_ca)
+
+        self.assertIn('Unable to connect to the metadata', str(cm.exception))
 
     def test_default_consistency(self):
         self.connect(self.creds)
@@ -210,3 +238,14 @@ class CloudTests(CloudStargateCluster):
             self.session.execute(statement)
         except InvalidRequest:
             self.fail("InvalidRequest was incorrectly raised for write query at LOCAL QUORUM!")
+
+    def test_cqlengine_can_connect(self):
+        class TestModel(Model):
+            id = columns.Integer(primary_key=True)
+            val = columns.Text()
+
+        connection.setup(None, "test", cloud={'secure_connect_bundle': self.creds})
+        create_keyspace_simple('test', 1)
+        sync_table(TestModel)
+        TestModel.objects.create(id=42, value='test')
+        self.assertEqual(len(TestModel.objects.all()), 1)
