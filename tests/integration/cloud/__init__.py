@@ -69,6 +69,14 @@ class CloudStargateServer(object):
         self.running = False
 
     def start(self):
+        subprocess.call(
+            ["uname -a"],
+            cwd=self.cloud_stargate_path,
+            shell=True)
+        subprocess.call(
+            ["uname -m"],
+            cwd=self.cloud_stargate_path,
+            shell=True)
         return_code = subprocess.call(
             ['REQUIRE_CLIENT_CERTIFICATE=true ./run.sh'],
             cwd=self.cloud_stargate_path,
