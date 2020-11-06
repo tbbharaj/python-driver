@@ -70,11 +70,11 @@ class CloudStargateServer(object):
 
     def start(self):
         subprocess.call(
-            ["uname -a"],
+            ["echo hello"],
             cwd=self.cloud_stargate_path,
             shell=True)
         subprocess.call(
-            ["uname -m"],
+            ["cat /etc/hosts"],
             cwd=self.cloud_stargate_path,
             shell=True)
         return_code = subprocess.call(
