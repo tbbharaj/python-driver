@@ -32,7 +32,7 @@ slack = new Slack()
 // Define our predefined matrices
 matrices = [
   "FULL": [
-    "SERVER": ['2.1', '2.2', '3.0', '3.11', '4.0', 'dse-5.0', 'dse-5.1', 'dse-6.0', 'dse-6.7', 'dse-6.8'],
+    "SERVER": ['2.1', '2.2', '3.0', '3.11', 'dse-5.0', 'dse-5.1', 'dse-6.0', 'dse-6.7', 'dse-6.8'],
     "RUNTIME": ['2.7.18', '3.5.9', '3.6.10', '3.7.7', '3.8.3'],
     "CYTHON": ["True", "False"]
   ],
