@@ -4,6 +4,17 @@ echo "Hi"
 ls -lrt
 cd /src/
 
+#!/bin/bash
+
+for bindir in /opt/python/*/bin; do
+    "$bindir/pip" wheel /src/ -w wheelhouse/
+done
+
+for whl in wheelhouse/*.whl; do
+    auditwheel repair "$whl" -w /src/wheelhouse/
+done
+
+
 # Create binary wheels
 /opt/python/${PYTHON}/bin/python3 setup.py bdist_wheel
 
