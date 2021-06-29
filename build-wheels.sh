@@ -1,6 +1,7 @@
 #!/bin/bash
 set -e -u -x
-
+echo "Hi"
+ls -lrt
 cd /src/
 
 # Create binary wheels

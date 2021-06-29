@@ -1,23 +1,87 @@
+dist: xenial
 language: python
+os: linux
 services: docker
 
-matrix:
-  include:
-    - arch: arm64-graviton2
-      python: 3.8
-      env: >
-        DOCKER_IMAGE=quay.io/pypa/manylinux2014_aarch64
-        PYTHON=cp36-cp36 PLAT=manylinux2014_aarch64
+env:
+  global:
+    - CASS_DRIVER_NO_CYTHON=1
+
+addons:
+  apt:
+    packages:
+    - build-essential
+    - python-dev
+    - pypy-dev
+    - libc-ares-dev
+    - libev4
+    - libev-dev
+
 install:
-  - python3 -m pip install twine
-  - docker pull $DOCKER_IMAGE
+  - pip install --upgrade setuptools
+  - pip install tox-travis
+  - if [[ $TRAVIS_PYTHON_VERSION != pypy3.5 ]]; then pip install lz4; fi
+  - if [[ $PLAT == aarch64 ]]; then uname -m; docker pull $DOCKER_IMAGE; fi
 
 script:
-  - docker run --rm -e PLAT=$PLAT -e PYTHON=$PYTHON -v `pwd`:/src $DOCKER_IMAGE /src/build-wheels.sh
-  
-after_success:
-    - |
-      if [ -n $TRAVIS_TAG ]; then
-        python3 -m twine upload --skip-existing wheelhouse/*
-      fi
+  - tox
+  - tox -e gevent_loop
+  - tox -e eventlet_loop
+  # - python setup.py bdist_wheel
+  - if [[ $PLAT == aarch64 ]]; then docker run --rm -v `pwd`:/python-driver $DOCKER_IMAGE; fi
+  - ls -lrt
+  - bash build-wheels.sh
+jobs:
+  include:
+    #- arch: amd64
+    #  python: "pypy2.7-6.0"
 
+    #- arch: amd64
+    #  python: "pypy3.5"
+
+    #- arch: amd64
+    #  python: "3.5"
+
+    #- arch: amd64
+    #  python: "2.7"
+
+    #- arch: amd64
+    #  python: "3.6"
+
+    #- arch: amd64
+    #  python: "3.7"
+
+    - arch: arm64
+      python: "3.8"
+      env:
+       - DOCKER_IMAGE=quay.io/pypa/manylinux2014_aarch64
+       - PLAT=aarch64
+       - PYTHON=3.8
+    
+    - arch: arm64
+      python: "3.5"
+      env:
+       - DOCKER_IMAGE=quay.io/pypa/manylinux2014_aarch64
+       - PLAT=aarch64
+       - PYTHON=3.5
+    
+    - arch: arm64
+      python: "3.6"
+      env:
+       - DOCKER_IMAGE=quay.io/pypa/manylinux2014_aarch64
+       - PLAT=aarch64
+       - PYTHON=3.6
+       
+    - arch: arm64
+      python: "3.7"
+      env:
+       - DOCKER_IMAGE=quay.io/pypa/manylinux2014_aarch64
+       - PLAT=aarch64
+       - PYTHON=3.7
+    
+    - arch: arm64
+      python: "2.7"
+      env:
+       - DOCKER_IMAGE=quay.io/pypa/manylinux2014_aarch64
+       - PLAT=aarch64
+       - PYTHON=2.7
