@@ -25,7 +25,7 @@ done
 #done
 
 if [ `uname -m` = 'aarch64' ]; then
-	/opt/python/cp38-cp38/bin/pip3 install /src/*-manylinux_2_17_aarch64.whl
+	/opt/python/cp38-cp38/bin/pip3 install /src/cassandra_driver-*.whl
 #else
 #	/opt/python/cp39-cp39/bin/pip3.9 install /io/*-manylinux2014_x86_64.whl
 fi
