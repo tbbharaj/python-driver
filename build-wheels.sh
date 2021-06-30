@@ -18,6 +18,7 @@
 
 #!/bin/bash
 set -e -u -x
+ls -lrt /opt/python/
 cd /src/
 
 #for bindir in /opt/python/*/bin; do
