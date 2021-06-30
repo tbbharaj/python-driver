@@ -28,7 +28,7 @@ script:
   - tox -e gevent_loop
   - tox -e eventlet_loop
   - python setup.py bdist_wheel
-  - if [[ $PLAT == aarch64 ]]; then docker run --rm -e PLAT=$PLAT -v $(realpath .):/src $DOCKER_IMAGE /src/build-wheels.sh; fi
+  - if [[ $PLAT == aarch64 ]]; then docker run --rm -e PLAT=$PLAT -e PYTHON=$PYTHON -v $(realpath .):/src $DOCKER_IMAGE /src/build-wheels.sh; fi
 jobs:
   include:
     - arch: amd64

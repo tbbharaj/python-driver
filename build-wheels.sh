@@ -1,6 +1,7 @@
 #!/bin/bash
 set -e -u -x
-
+echo ${PLAT}
+echo ${PYTHON}
 # Create binary wheels
 /opt/python/${PYTHON}/bin/pip wheel /src/ -w wheelhouse/
 
