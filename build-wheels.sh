@@ -10,8 +10,8 @@ cd /src/
 #    "$bindir/pip" wheel /src/ -w wheelhouse/
 #done
 /opt/python/cp38-cp38/bin/pip wheel /src/ -w wheelhouse/
-
-for whl in /src/wheelhouse/*.whl; do
+ls -lrt wheelhouse/
+for whl in /src/wheelhouse/cassandra_driver-*.whl; do
     auditwheel repair "$whl" -w /src/wheelhouse/
 done
 
