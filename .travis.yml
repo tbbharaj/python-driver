@@ -24,63 +24,41 @@ install:
   - if [[ $PLAT == aarch64 ]]; then uname -m; docker pull $DOCKER_IMAGE; fi
 
 script:
-  #- tox
-  #- tox -e gevent_loop
-  #- tox -e eventlet_loop
-  #- python setup.py bdist_wheel
+  - tox
+  - tox -e gevent_loop
+  - tox -e eventlet_loop
   - if [[ $PLAT == aarch64 ]]; then docker run --rm -e PLAT=$PLAT -e PYTHON=$PYTHON -v $(realpath .):/src $DOCKER_IMAGE /src/build-wheels.sh; fi
 jobs:
   include:
-    #    - arch: amd64
-    #  python: "pypy2.7-6.0"
+    - arch: amd64
+      python: "pypy2.7-6.0"
 
-    #- arch: amd64
-    #  python: "pypy3.5"
+    - arch: amd64
+      python: "pypy3.5"
 
-    #- arch: amd64
-    #  python: "3.5"
-
-    #- arch: amd64
-    #  python: "2.7"
-
-    #- arch: amd64
-    #  python: "3.6"
-
-    #- arch: amd64
-    #  python: "3.7"
-
-    #- arch: arm64
-    #  python: "3.8"
-    #  env:
-    #   - DOCKER_IMAGE=quay.io/pypa/manylinux2014_aarch64
-    #   - PLAT=aarch64
-    #   - PYTHON=cp38-cp38
-    
-    - arch: arm64
+    - arch: amd64
       python: "3.5"
-      env:
-       - DOCKER_IMAGE=quay.io/pypa/manylinux2014_aarch64
-       - PLAT=aarch64
-       - PYTHON=3.5
 
-    - arch: arm64
+    - arch: amd64
       python: "2.7"
-      env:
-       - DOCKER_IMAGE=quay.io/pypa/manylinux2014_aarch64
-       - PLAT=aarch64
-       - PYTHON=py27-py27
-    
-    - arch: arm64
+
+    - arch: amd64
       python: "3.6"
-      env:
-       - DOCKER_IMAGE=quay.io/pypa/manylinux2014_aarch64
-       - PLAT=aarch64
-       - PYTHON=cp36-cp36m
+
+    - arch: amd64
+      python: "3.7"
 
     - arch: arm64
       python: "3.7"
       env:
+       - DOCKER_IMAGE=quay.io/pypa/manylinux2014_aarch64
+       - PLAT=aarch64
+       - PYTHON=cp37-cp37m
+    
+    - arch: arm64
+      python: "3.8"
+      env:
         - DOCKER_IMAGE=quay.io/pypa/manylinux2014_aarch64
         - PLAT=aarch64
-        - PYTHON=cp37-cp37m
+        - PYTHON=cp38-cp38
 
