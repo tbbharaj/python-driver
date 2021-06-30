@@ -18,21 +18,15 @@
 
 #!/bin/bash
 set -e -u -x
-echo "Hi"
-ls -lrt
 cd /src/
-
-#!/bin/bash
 
 #for bindir in /opt/python/*/bin; do
 #    "$bindir/pip" wheel /src/ -w wheelhouse/
 #done
 /opt/python/${PYTHON}/bin/pip wheel /src/ -w wheelhouse/
-ls -lrt 
 ls -lrt wheelhouse/
 for whl in wheelhouse/cassandra_driver-*.whl; do
     auditwheel repair "$whl" -w wheelhouse/
 done
-ls -lrt wheelhouse/
 
 
