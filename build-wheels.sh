@@ -11,7 +11,7 @@ cd /src/
 #done
 /opt/python/cp38-cp38/bin/pip wheel /src/ -w wheelhouse/
 
-for whl in wheelhouse/*.whl; do
+for whl in /src/wheelhouse/*.whl; do
     auditwheel repair "$whl" -w /src/wheelhouse/
 done
 
