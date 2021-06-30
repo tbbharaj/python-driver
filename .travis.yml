@@ -61,8 +61,15 @@ jobs:
       env:
        - DOCKER_IMAGE=quay.io/pypa/manylinux2014_aarch64
        - PLAT=aarch64
-       - PYTHON=cp35-cp35m
+       - PYTHON=3.5
 
+    - arch: arm64
+      python: "2.7"
+      env:
+       - DOCKER_IMAGE=quay.io/pypa/manylinux2014_aarch64
+       - PLAT=aarch64
+       - PYTHON=py27-py27
+    
     - arch: arm64
       python: "3.6"
       env:
