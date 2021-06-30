@@ -6,9 +6,10 @@ cd /src/
 
 #!/bin/bash
 
-for bindir in /opt/python/*/bin; do
-    "$bindir/pip" wheel /src/ -w wheelhouse/
-done
+#for bindir in /opt/python/*/bin; do
+#    "$bindir/pip" wheel /src/ -w wheelhouse/
+#done
+/opt/python/cp38-cp38/bin/pip wheel /src/ -w wheelhouse/
 
 for whl in wheelhouse/*.whl; do
     auditwheel repair "$whl" -w /src/wheelhouse/
@@ -24,7 +25,7 @@ done
 #done
 
 if [ `uname -m` = 'aarch64' ]; then
-	/opt/python/${PYTHON}/bin/pip3 install /io/*-manylinux2014_aarch64.whl
+	/opt/python/cp38-cp38/bin/pip3 install /src/*-manylinux2014_aarch64.whl
 #else
 #	/opt/python/cp39-cp39/bin/pip3.9 install /io/*-manylinux2014_x86_64.whl
 fi
