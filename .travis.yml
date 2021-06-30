@@ -56,12 +56,12 @@ jobs:
     #   - PLAT=aarch64
     #   - PYTHON=cp38-cp38
     
-    #- arch: arm64
-    #  python: "3.5"
-    #  env:
-    #   - DOCKER_IMAGE=quay.io/pypa/manylinux2014_aarch64
-    #   - PLAT=aarch64
-    #   - PYTHON=cp35-cp35
+    - arch: arm64
+      python: "3.5"
+      env:
+       - DOCKER_IMAGE=quay.io/pypa/manylinux2014_aarch64
+       - PLAT=aarch64
+       - PYTHON=cp35-cp35
 
     - arch: arm64
       python: "3.6"
