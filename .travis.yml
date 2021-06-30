@@ -36,7 +36,7 @@ jobs:
       env:
        - DOCKER_IMAGE=quay.io/pypa/manylinux2014_aarch64
        - PLAT=aarch64
-       - PYTHON=3.8
+       - PYTHON=cp38-cp38
     - arch: amd64
       python: "pypy2.7-6.0"
 
