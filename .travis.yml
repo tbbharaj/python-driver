@@ -31,23 +31,23 @@ script:
   - if [[ $PLAT == aarch64 ]]; then docker run --rm -e PLAT=$PLAT -e PYTHON=$PYTHON -v $(realpath .):/src $DOCKER_IMAGE /src/build-wheels.sh; fi
 jobs:
   include:
-    #- arch: amd64
-    #  python: "pypy2.7-6.0"
+    - arch: amd64
+      python: "pypy2.7-6.0"
 
-    #- arch: amd64
-    #  python: "pypy3.5"
+    - arch: amd64
+      python: "pypy3.5"
 
-    #- arch: amd64
-    #  python: "3.5"
+    - arch: amd64
+      python: "3.5"
 
-    #- arch: amd64
-    #  python: "2.7"
+    - arch: amd64
+      python: "2.7"
 
-    #- arch: amd64
-    #  python: "3.6"
+    - arch: amd64
+      python: "3.6"
 
-    #- arch: amd64
-    #  python: "3.7"
+    - arch: amd64
+      python: "3.7"
 
     - arch: arm64
       python: "3.8"
