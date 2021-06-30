@@ -27,11 +27,12 @@ cd /src/
 #for bindir in /opt/python/*/bin; do
 #    "$bindir/pip" wheel /src/ -w wheelhouse/
 #done
-/opt/python/cp38-cp38/bin/pip wheel /src/ -w wheelhouse/
+/opt/python/${PYTHON}/bin/pip wheel /src/ -w wheelhouse/
 ls -lrt 
 ls -lrt wheelhouse/
-for whl in /src/wheelhouse/cassandra_driver-*.whl; do
-    auditwheel repair "$whl" -w /src/wheelhouse/
+for whl in wheelhouse/cassandra_driver-*.whl; do
+    auditwheel repair "$whl" -w wheelhouse/
 done
+ls -lrt wheelhouse/
 
 
