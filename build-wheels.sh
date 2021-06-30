@@ -18,7 +18,7 @@
 
 #!/bin/bash
 set -e -u -x
-ls -lrt /opt/python/
+ls -lrt /opt/
 ls -lrt /opt/python/${PYTHON}/
 cd /src/
 
